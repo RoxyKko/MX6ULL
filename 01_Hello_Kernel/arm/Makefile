@@ -1,4 +1,4 @@
-KERNAL_DIR := $(shell pwd)/build
+KERNAL_DIR := /home/noah/imx6ull/bsp/kernel/linux-imx 
 PWD :=$(shell pwd)
 appname += kernel_hello
 obj-m := $(appname).o
