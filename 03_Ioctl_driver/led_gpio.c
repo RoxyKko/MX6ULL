@@ -64,7 +64,7 @@ static int led_open(struct inode *inode, struct file *file)
 
 static int led_release(struct inode *inode, struct file *file)
 {
-	printl(KERN_DEBUG "/dev/led%d off.\n", led_dev.devid);
+	printk(KERN_DEBUG "/dev/led%d off.\n", led_dev.devid);
 	return 0;
 }
 
@@ -95,10 +95,10 @@ static long led_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 /* 字符设备操作函数集 */
 static struct file_operations led_fops = {
-	.owner = THIS_MODULE;
-	.open = led_open;
-	.release = led_release;
-	.unlocked_ioctl = led_ioctl;
+	.owner = THIS_MODULE,
+	.open = led_open,
+	.release = led_release,
+	.unlocked_ioctl = led_ioctl,
 };
 
 /* probe函数实现字符设备的注册和LED灯的初始化 */
@@ -141,7 +141,7 @@ static int led_probe(struct platform_device *pdev)
 	// 分配设备号失败（包含动态静态）
 	if(result < 0)
 	{
-		prink("%s driver can't get major %d\n", DEV_NAME, dev_major);
+		printk(" %s driver can't get major %d\n", DEV_NAME, dev_major);
 		return result;
 	}
 	printk(" %s driver use major %d\n", DEV_NAME, dev_major);
@@ -154,7 +154,7 @@ static int led_probe(struct platform_device *pdev)
 	// 添加失败
 	if(result != 0)
 	{
-		printk("%s driver can't register cder:result = %d\n" DEV_NAME, result);
+		printk("%s driver can't register cder:result = %d\n", DEV_NAME, result);
 		goto ERROR;
 	}
 	printk(" %s driver can register cdev:result=%d\n", DEV_NAME, result);
@@ -163,7 +163,7 @@ static int led_probe(struct platform_device *pdev)
 	led_dev.class = class_create(THIS_MODULE, DEV_NAME); /* /sys/class/my_led 创建类 */
 	if(IS_ERR(led_dev.class))
 	{
-		printk("%s driver create class failure\n" DEV_NAME);
+		printk("%s driver create class failure\n", DEV_NAME);
 		result = -ENOMEM;
 		goto ERROR;
 	}
@@ -207,7 +207,7 @@ static const struct of_device_id leds_match_table[] = {
 MODULE_DEVICE_TABLE(of, leds_match_table);
 
 /* 定义平台驱动结构体 */
-static struct platform_device gpio_led_driver = {
+static struct platform_driver gpio_led_driver = {
 	.probe		=	led_probe,		//驱动安装是会执行的钩子函数
 	.remove		=	led_remove,		//驱动卸载时执行函数
 	.driver		=	{				//描述这个驱动的属性
@@ -223,10 +223,10 @@ static int __init platdrv_led_init(void)
 {
 	int		rv = 0;
 
-	rv = platform_device_register(&gpio_led_driver);	//注册platform的led驱动
+	rv = platform_driver_register(&gpio_led_driver);	//注册platform的led驱动
 	if(rv)
 	{
-		printl(KERN_ERR "%s:%d: Can't register platform driver %d\n", __FUNCTION__, __LINE__, rv);
+		printk(KERN_ERR "%s:%d: Can't register platform driver %d\n", __FUNCTION__, __LINE__, rv);
 		return rv;
 	}
 	printk("Register LED Platform Driver successfully!\n");
