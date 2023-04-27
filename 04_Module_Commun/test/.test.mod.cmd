@@ -1,0 +1,1 @@
+cmd_/home/noah/workspace/iMX6ULL/04_Module_Commun/test/test.mod := { echo  /home/noah/workspace/iMX6ULL/04_Module_Commun/test/test.o;  echo; } > /home/noah/workspace/iMX6ULL/04_Module_Commun/test/test.mod
