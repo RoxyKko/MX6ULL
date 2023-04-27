@@ -3,7 +3,7 @@ PWD :=$(shell pwd)
 appname += add_sub
 obj-m := $(appname).o
 PRINC_INC = $(PWD)
-EXTRA_CFLAGS += -I $(PRINC_INC) 
+#EXTRA_CFLAGS += -I $(PRINC_INC) 
 
 modules:
 	$(MAKE) -I $(PRINC_INC) -C $(KERNEL_DIR) M=$(PWD) modules
@@ -12,8 +12,8 @@ modules:
 clear:
 	@rm -f *.o *.cmd *.mod *.mod.c
 	@rm -rf *~ core .depend .tmp_versions  modules.order -f
-	@rm -f .*ko.cmd .*.o.cmd .*.o.d
-	@rm -f *.unsigned
+	@rm -f .*ko.cmd .*.o.cmd .*.o.d .*.mod.cmd .*.order.cmd  
+	@rm -rf *.unsigned *.symvers .*.symvers.cmd 
 
 clean:
 	@rm -f *.ko

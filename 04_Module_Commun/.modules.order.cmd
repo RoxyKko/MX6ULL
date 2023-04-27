@@ -1,1 +1,0 @@
-cmd_/home/noah/workspace/iMX6ULL/04_Module_Commun/modules.order := {   echo /home/noah/workspace/iMX6ULL/04_Module_Commun/add_sub.ko; :; } | awk '!x[$$0]++' - > /home/noah/workspace/iMX6ULL/04_Module_Commun/modules.order

@@ -1,1 +1,0 @@
-cmd_/home/noah/workspace/iMX6ULL/04_Module_Commun/add_sub/Module.symvers := sed 's/\.ko$$/\.o/' /home/noah/workspace/iMX6ULL/04_Module_Commun/add_sub/modules.order | scripts/mod/modpost -m -a  -o /home/noah/workspace/iMX6ULL/04_Module_Commun/add_sub/Module.symvers -e -i Module.symvers   -T -
