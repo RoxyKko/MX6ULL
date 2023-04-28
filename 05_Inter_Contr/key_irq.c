@@ -208,7 +208,7 @@ static ssize_t key_read(struct file *filp, char __user *buf, size_t cnt, loff_t 
 		atomic_set(&(priv->keyvalue), INVAKEY);
 	}
 
-	value = atomic_read(&priv->keyvalue);			// 保存按键值
+	value = atomic_read(&(priv->keyvalue));			// 保存按键值
 	ret = copy_to_user(buf, &value, sizeof(value));
 
 	return ret;
