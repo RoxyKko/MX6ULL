@@ -60,7 +60,7 @@ struct platform_key_priv
 
 	atomic_t					keyvalue;		// 有效的按键键值，用于向应用层上报，原子变量
 	atomic_t					releasekey;		// 标记是否完成一次完成的按键，用于向应用层上报
-	struct time_list			timer;			// 定时器用于消抖
+	struct timer_list			timer;			// 定时器用于消抖
 };
 
 // 为key私有属性开辟存储空间的函数
@@ -229,10 +229,145 @@ static struct file_operations key_fops =
 
 static int platform_key_probe(struct platform_device *pdev)
 {
+	struct platform_key_priv	*priv;	// 临时存放私有属性结构体
+	struct device				*dev;	// 设备结构体
+	dev_t						devno;	// 设备的主次设备号
+	int							i, rv=0;
 
+	// 1、解析设备树并初始化key状态
+	rv = parser_dt_init_key(pdev);
+	if(rv<0)
+	{
+		return rv;
+	}
+
+	// 将之前存入的私有属性放入临时存放的结构体中
+	priv = platform_get_drvdata(pdev);
+	
+	// 2、分配主次设备号
+	if(dev_major != 0)
+	{
+		// 静态分配设备号
+		devno = MKDEV(dev_major, 0);
+		rv = register_chrdev_region(devno, priv->num_key, KEY_NAME);	// /proc/devices/key_irq
+	}
+	else
+	{
+		// 动态分配主次设备号
+		rv = alloc_chrdev_region(&devno, 0, priv->num_key, KEY_NAME);
+		dev_major = MAJOR(devno);
+	}
+
+	if(rv < 0)
+	{
+		dev_err(&pdev->dev, "major can't be allocated\n");
+		return rv;
+	}
+
+	// 3、分配cdev结构体
+	cdev_init(&priv->cdev,  &key_fops);
+	priv->cdev.owner = THIS_MODULE;
+
+	rv = cdev_add(&priv->cdev, devno, priv->num_key);
+	if(rv < 0)
+	{
+		dev_err(&pdev->dev, "struture cdev can't be allocated\n");
+		goto undo_major;
+	}
+
+	// 4、创建类，实现自动创建设备节点
+	priv->dev_class = class_create(THIS_MODULE, "key"); // /sys/class/key
+	if( IS_ERR(priv->dev_class) )
+	{
+		dev_err(&pdev->dev, "fail to create class\n");
+		rv = -ENOMEM;
+		goto undo_cdev;
+	}
+
+	// 5、创建设备
+	for(i = 0; i<priv->num_key; i++)
+	{
+		devno = MKDEV(dev_major, i);
+		dev = device_create(priv->dev_class, NULL, devno, NULL, "key%d", i); // /dev/key0
+		if( IS_ERR(dev) )
+		{
+			dev_err(&pdev->dev, "fail to create device\n");
+			rv = -ENOMEM;
+			goto undo_class;
+		}
+	}
+
+	printk("success to install driver[major=%d]!\n", dev_major);
+
+	return 0;
+undo_class:
+	class_destroy(priv->dev_class);
+
+undo_cdev:
+	cdev_del(&priv->cdev);
+
+undo_major:
+	unregister_chrdev_region(devno, priv->num_key);
+
+	return rv;
 }
 
+static int platform_key_remove(struct platform_device *pdev)
+{
+	struct platform_key_priv *priv = platform_get_drvdata(pdev);
+	int i;
+	dev_t devno = MKDEV(dev_major, 0);
 
+	// 注销设备结构体，class结构体和cdev结构体
+	for(i = 0; i < priv->num_key; i++)
+	{
+		devno = MKDEV(dev_major, i);
+		device_destroy(priv->dev_class, devno);
+	}
+	class_destroy(priv->dev_class);
+
+	cdev_del(&priv->cdev);
+	unregister_chrdev_region(MKDEV(dev_major, 0), priv->num_key);
+
+	// 将key的状态设置为0
+	for(i = 0; i< priv->num_key; i++)
+	{
+		gpio_set_value(priv->key.key_gpio, 0);
+	}
+
+	// 删除定时器
+	del_timer_sync(&(priv->timer));
+
+	// 释放中断
+	free_irq(priv->key.irq, priv);
+
+	printk("success to remove driver[major=%d]!\n",dev_major);
+	return 0;
+}
+
+// 匹配列表
+static const struct of_device_id platform_key_of_match[] = {
+	{ .compatible = "my-gpio-keys" },
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, platform_key_of_match);
+
+// platform驱动结构体
+static struct platform_driver platform_key_driver = {
+	.driver		= {
+		.name	=	"key_irq",						// 无设备树时，用于设备和驱动间的匹配
+		.of_match_table = platform_key_of_match,	// 有设备树后，利用设备树匹配表
+	},
+
+	.probe		=	platform_key_probe,
+	.remove		=	platform_key_remove,
+};
+
+module_platform_driver(platform_key_driver);
+
+MODULE_AUTHOR("NongJieYing");
+MODULE_LICENSE("GPL");
 
 
 
