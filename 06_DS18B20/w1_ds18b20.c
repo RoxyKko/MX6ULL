@@ -99,7 +99,7 @@ static int parser_dt_init_w1(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "parser dts got valid w1\n");
 
-	platform_device(pdev, priv);	// 设置私有数据，方便其他函数操作
+	platform_set_drvdata(pdev, priv);	// 设置私有数据，方便其他函数操作
 
 	return 0;
 }
@@ -469,7 +469,7 @@ static int gpio_w1_probe(struct platform_device *pdev)
 
 	/*---------------------注册 字符设备部分-----------------*/
 	/* 1.分配设备号 */
-	if(drv_major != 0)
+	if(dev_major != 0)
 	{
 		// 静态分配
 		devno = MKDEV(dev_major, 0);
