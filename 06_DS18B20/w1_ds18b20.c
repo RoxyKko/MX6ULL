@@ -494,7 +494,7 @@ static int gpio_w1_probe(struct platform_device *pdev)
 	priv->cdev.owner = THIS_MODULE;
 	cdev_init(&priv->cdev, &w1_fops);	// 初始化cdev结构体
 	
-	rv = cdev_add(&priv->cdev, devno, 1);	// 注册cdev结构体
+	rv = cdev_add(&priv->cdev, devno, DEV_CNT);	/*注册给内核,设备数量1个*/
 	if(rv < 0)
 	{
 		printk("%s driver add cdev failed\n", DEV_NAME);
@@ -503,7 +503,7 @@ static int gpio_w1_probe(struct platform_device *pdev)
 	printk("%s driver add cdev success, cdev:result=%d\n", DEV_NAME, rv);
 
 	/* 3.创建类 */
-	priv->dev_class = class_create(THIS_MODULE, DEV_NAME);	// 创建类
+	priv->dev_class = class_create(THIS_MODULE, DEV_NAME); /* /sys/class/my_w1 创建类*/
 	if(IS_ERR(priv->dev_class))
 	{
 		printk("%s driver create class failed\n", DEV_NAME);
@@ -539,6 +539,8 @@ static int gpio_w1_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	dev_set_drvdata(priv->dev, priv);
 	dev_info(&pdev->dev, "gpio_w1_probe success\n");
+
+	return 0;
 
 undo_device:
 	device_destroy(priv->dev_class, devno);
@@ -613,7 +615,7 @@ static struct platform_driver gpio_w1_driver = {
 	.remove			= gpio_w1_remove,	// 驱动卸载时候会执行的钩子函数
 	.shutdown		= imx_w1_shutdown,	// 设备停止执行的函数
 	.driver			= {
-		.name		= "ds18b20-gpios",	// 无设备树时，用于设备和驱动间匹配
+		.name		= "ds18b20-gpio",	// 无设备树时，用于设备和驱动间匹配
 		.owner		= THIS_MODULE,
 		.of_match_table = w1_match_table,	// 有设备树后，利用设备树匹配表
 	},
