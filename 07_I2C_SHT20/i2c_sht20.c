@@ -50,10 +50,10 @@ static int dev_major = DEV_MAJOR;			// 主设备号
 /* 存放sht20的私有属性 */
 struct sht20_priv {
 	struct cdev			cdev;		// 字符设备结构体
-	struct class		*class;		// 自动创建设备节点的类
+	struct class		*dev_class;		// 自动创建设备节点的类
 	struct i2c_client	*client;	// i2c设备的client结构体
 	struct device		*dev;		// 设备结构体
-}
+};
 
 /* sht20软复位 */
 static int sht20_soft_reset(struct i2c_client *client)
@@ -112,13 +112,13 @@ static int i2c_read_sht20(struct i2c_client *client, uint8_t cmd, void *recv, ui
 	struct i2c_msg sht20_msg[2];
 
 	/* 设置读取位置i2c_msg,发送iic要写入的地址 */
-	sht20_msg[0].addr = client.addr;	// sht20在i2c总线上的地址
+	sht20_msg[0].addr = client->addr;	// sht20在i2c总线上的地址
 	sht20_msg[0].flags = 0;				// 标记为发送数据
 	sht20_msg[0].buf = &cmd_data;		// 写入的首地址
 	sht20_msg[0].len = 1;				// 写入长度
 
 	/* 读取i2c_msg */
-	sht20_msg[1].addr = client.addr;	// sht20在i2c总线上的地址
+	sht20_msg[1].addr = client->addr;	// sht20在i2c总线上的地址
 	sht20_msg[1].flags = I2C_M_RD;		// 标记为读取数据
 	sht20_msg[1].buf = recv;			// 读取得到的数据保存位置
 	sht20_msg[1].len = length;			// 读取长度
@@ -158,7 +158,7 @@ static int read_t_rh_data(struct i2c_client *client, unsigned char *tx_data)
 	rv = i2c_read_sht20(client, cmd_t, rx_data, 3);
 	if(rv < 0)
 	{
-		dev_err(&client->cdev, "i2c recv temp data failure!\n");
+		dev_err(&client->dev, "i2c recv temp data failure!\n");
 		return -1;
 	}
 
@@ -166,7 +166,7 @@ static int read_t_rh_data(struct i2c_client *client, unsigned char *tx_data)
 	rv = i2c_read_sht20(client, cmd_rh, rx_data+3, 3);
 	if(rv < 0)
 	{
-		dev_err(&client->cdev, "i2c recv humi data failure!\n");
+		dev_err(&client->dev, "i2c recv humi data failure!\n");
 		return -1;
 	}
 
@@ -188,13 +188,13 @@ static int read_t_rh_data(struct i2c_client *client, unsigned char *tx_data)
 
 	if(sht20_crc8(crc_data_t, 2, checksum[0]) != 0)
 	{
-		dev_err(&client->cdev, "temprature data fails to pass cyclic redundancy check\n");
+		dev_err(&client->dev, "temprature data fails to pass cyclic redundancy check\n");
 		return -1;
 	}
 
 	if(sht20_crc8(crc_data_rh, 2, checksum[1]) != 0)
 	{
-		dev_err(&client->cdev, "humidity data fails to pass cyclic redundancy check\n");
+		dev_err(&client->dev, "humidity data fails to pass cyclic redundancy check\n");
 		return -1;
 	}
 
@@ -254,7 +254,7 @@ static ssize_t sht20_read(struct file *filp, char __user *buf, size_t cnt, loff_
     if(rv)
     {
         dev_err(priv->dev, "copy to user failure!\n");
-        return -EFAULT
+        return -EFAULT;
     }
 
     return rv;
@@ -312,7 +312,7 @@ static ssize_t temp_humi_show(struct device *pdev, struct device_attribute *attr
     humi = ( (tx_data[2] << 8) | tx_data[3] );      // 放大100倍
     printk("show_test %x %x %x %x \n", tx_data[0], tx_data[1], tx_data[2], tx_data[3]);
 
-    return sprintf(buf, "temp=%d,humi=%d\n",temperature, humidity);//1000倍
+    return sprintf(buf, "temp=%d,humi=%d\n",temp, humi);//1000倍
 
 }
 
@@ -338,7 +338,7 @@ static int sht20_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
     struct sht20_priv   *priv = NULL;   // 临时存放私有属性结构体
     dev_t               devno;          // 设备的主次设备号
-    init                rv = 0;
+    int                 rv = 0;
 
     // 0.给priv分配空间
     priv = devm_kzalloc(&client->dev, sizeof(struct sht20_priv), GFP_KERNEL);
@@ -358,7 +358,7 @@ static int sht20_probe(struct i2c_client *client, const struct i2c_device_id *id
     else
     {
         // 动态
-        rv = alloc_chrdev_region(&devno, DEV_CNT, DEV_NAME); // 动态申请字符设备号
+        rv = alloc_chrdev_region(&devno, 0, DEV_CNT, DEV_NAME); // 动态申请字符设备号
         dev_major = MAJOR(devno);      // 获取主设备号
     }
 
@@ -371,7 +371,7 @@ static int sht20_probe(struct i2c_client *client, const struct i2c_device_id *id
 
     /*2.分配cdev结构体，绑定主次设备号、fops到cdev结构体中，并注册给Linux内核*/
     priv->cdev.owner = THIS_MODULE;
-    cdev_int(&priv->cdev, &sht20_fops); /*初始化cdev,把fops添加进去*/
+    cdev_init(&priv->cdev, &sht20_fops); /*初始化cdev,把fops添加进去*/
     rv = cdev_add(&priv->cdev, devno, DEV_CNT); /*注册给内核,设备数量1个*/
 
     if(rv != 0)
@@ -444,7 +444,7 @@ static int sht20_remove(struct i2c_client *client)
     device_destroy(priv->dev_class, devno);
 
     // 注销类
-    class_destroy(priv->dev_class, devno);
+    class_destroy(priv->dev_class);
 
     // 删除cdev
     cdev_del(&priv->cdev);
