@@ -11,6 +11,13 @@ module:
 	cp i2c_sht20.ko i2c_sys_App $(TFTP_DIR) -f
 
 clear:
+	@rm -f *.o *.cmd *.mod *.mod.c
+	@rm -rf *~ core .depend .tmp_versions Module.symvers modules.order -f
+	@rm -f .*ko.cmd .*.o.cmd .*.o.d
+	@rm -f *.unsigned .*.*.cmd
+
+clean:
+	@rm -f *.ko
 
 
 
